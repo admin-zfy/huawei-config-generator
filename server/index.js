@@ -14,38 +14,21 @@ const { generateReport } = require('./report/generator');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const IS_PROD = process.env.NODE_ENV === 'production';
 
-// CORS — 生产环境限制来源，开发环境放开
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
-  : [];
+const IS_VERCEL = !!process.env.VERCEL;
+const IS_PROD = process.env.NODE_ENV === 'production' || IS_VERCEL;
 
-app.use(cors({
-  origin: IS_PROD && allowedOrigins.length > 0
-    ? (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error('CORS not allowed'));
-        }
-      }
-    : true, // 开发环境允许所有来源
-  credentials: true,
-}));
+// CORS — 全栈部署同域，开发环境放开
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '5mb' }));
 
-// 生产环境 — 托管前端静态资源
+// 生产/Vercel 环境 — 托管前端静态资源
 if (IS_PROD) {
   const clientDist = path.join(__dirname, '..', 'client', 'dist');
   app.use(express.static(clientDist));
-
-  // SPA fallback — 非 /api 路由全部返回 index.html
   app.get(/^(?!\/api\/).*/, (req, res) => {
     res.sendFile(path.join(clientDist, 'index.html'));
   });
-
-  console.log(`[Production] 静态资源路径: ${clientDist}`);
 }
 
 function handleGenerate(res, generateFn, configName) {
@@ -189,22 +172,27 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.listen(PORT, () => {
-  console.log(`┌──────────────────────────────────────────────┐`);
-  console.log(`│  华为配置生成器 v2.1                            │`);
-  console.log(`│  Server: http://localhost:${PORT}                │`);
-  console.log(`│  Health: http://localhost:${PORT}/api/health      │`);
-  console.log(`├──────────────────────────────────────────────┤`);
-  console.log(`│  GET  /api/devices            — 设备列表       │`);
-  console.log(`│  GET  /api/devices/:id        — 设备详情       │`);
-  console.log(`│  POST /api/generate/vlan      — VLAN配置       │`);
-  console.log(`│  POST /api/generate/ospf      — OSPF路由       │`);
-  console.log(`│  POST /api/generate/acl       — ACL/安全策略    │`);
-  console.log(`│  POST /api/generate/stp       — STP生成树      │`);
-  console.log(`│  POST /api/generate/nat       — NAT/DHCP       │`);
-  console.log(`│  POST /api/generate/security  — 安全区域/策略   │`);
-  console.log(`├──────────────────────────────────────────────┤`);
-  console.log(`│  POST /api/analyze            — 配置安全分析   │`);
-  console.log(`│  POST /api/analyze/report     — 生成分析报告   │`);
-  console.log(`└──────────────────────────────────────────────┘`);
-});
+// Vercel serverless 导出 app；本地/其他平台直接 listen
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`┌──────────────────────────────────────────────┐`);
+    console.log(`│  华为配置生成器 v2.1                            │`);
+    console.log(`│  Server: http://localhost:${PORT}                │`);
+    console.log(`│  Health: http://localhost:${PORT}/api/health      │`);
+    console.log(`├──────────────────────────────────────────────┤`);
+    console.log(`│  GET  /api/devices            — 设备列表       │`);
+    console.log(`│  GET  /api/devices/:id        — 设备详情       │`);
+    console.log(`│  POST /api/generate/vlan      — VLAN配置       │`);
+    console.log(`│  POST /api/generate/ospf      — OSPF路由       │`);
+    console.log(`│  POST /api/generate/acl       — ACL/安全策略    │`);
+    console.log(`│  POST /api/generate/stp       — STP生成树      │`);
+    console.log(`│  POST /api/generate/nat       — NAT/DHCP       │`);
+    console.log(`│  POST /api/generate/security  — 安全区域/策略   │`);
+    console.log(`├──────────────────────────────────────────────┤`);
+    console.log(`│  POST /api/analyze            — 配置安全分析   │`);
+    console.log(`│  POST /api/analyze/report     — 生成分析报告   │`);
+    console.log(`└──────────────────────────────────────────────┘`);
+  });
+}
+
+module.exports = app;
