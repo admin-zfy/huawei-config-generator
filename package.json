@@ -1,0 +1,17 @@
+{
+  "name": "huawei-config-generator",
+  "version": "1.0.0",
+  "description": "华为网络配置生成器 - Huawei Network Configuration Generator",
+  "scripts": {
+    "install:all": "cd client && npm install && cd ../server && npm install",
+    "dev": "concurrently -n SERVER,CLIENT -c blue,green \"cd server && node index.js\" \"cd client && npm run dev\"",
+    "dev:server": "cd server && node index.js",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": ["huawei", "network", "configuration", "generator"],
+  "license": "MIT"
+}
